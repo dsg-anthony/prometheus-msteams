@@ -53,6 +53,8 @@ func (m *templatedCard) executeTemplate(promAlert webhook.Message) (string, erro
 	// That approach would be simpler to read and probably a performance gain because
 	// we don't have to run json.NewEncoder(v).Encode() multiple times.
 	if m.escapeUnderscores {
+		promAlert = jsonEscapeUnderscoresMessage(promAlert)
+	} else {
 		promAlert = jsonEscapeMessage(promAlert)
 	}
 
@@ -88,9 +90,27 @@ func jsonEncode(str string) string {
 
 // json escape all string values in kvData and also escape
 // '_' char so it does not get processed as markdown italic
-func jsonEncodeAlertmanagerKV(kvData template.KV) {
+func jsonEncodeAlertmanagerKVUnderscores(kvData template.KV) {
 	for k, v := range kvData {
 		kvData[k] = strings.ReplaceAll(jsonEncode(v), `_`, `\\_`)
+	}
+}
+
+func jsonEscapeUnderscoresMessage(promAlert webhook.Message) webhook.Message {
+	retPromAlert := promAlert
+	jsonEncodeAlertmanagerKVUnderscores(retPromAlert.GroupLabels)
+	jsonEncodeAlertmanagerKVUnderscores(retPromAlert.CommonLabels)
+	jsonEncodeAlertmanagerKVUnderscores(retPromAlert.CommonAnnotations)
+	for _, alert := range retPromAlert.Alerts {
+		jsonEncodeAlertmanagerKVUnderscores(alert.Labels)
+		jsonEncodeAlertmanagerKVUnderscores(alert.Annotations)
+	}
+	return retPromAlert
+}
+
+func jsonEncodeAlertmanagerKV(kvData template.KV) {
+	for k, v := range kvData {
+		kvData[k] = jsonEncode(v)
 	}
 }
 
